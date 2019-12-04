@@ -41,11 +41,9 @@ def index():
 
 @app.route('/venues')
 def venues():
-  # TODO: replace with real venues data.
-  #       num_shows should be aggregated based on number of upcoming shows per venue.
-    # venues = db.session.query(
-    #     db.func.count(Venue.id), Venue.state, Venue.city
-    # ).group_by(Venue.state, Venue.city).all()
+    """
+    Controller to list all venues.
+    """
     data = {}
     for venue in serialize_venue(Venue.query.all(), many=True, summarized=False):
         if venue['city'] not in data:
@@ -54,7 +52,7 @@ def venues():
                 'venues': [venue]
             }
         else:
-            data[venue.city].append(venue)
+            data[venue['city']]['venues'].append(venue)
 
     data = [{'city': city, 'state': data[city]['state'], 'venues': data[city]['venues']} for city in data.keys()]
 
@@ -88,7 +86,7 @@ def show_venue(venue_id):
 @app.route('/venues/create', methods=['GET'])
 def create_venue_form():
     """
-    Controller to render venue form.
+    Controller to render new venue form.
     """
     form = VenueForm()
     return render_template('forms/new_venue.html', form=form)
@@ -100,14 +98,16 @@ def create_venue_submission():
     Controller to handle venue creation.
     """
     try:
-        venue = Venue(**request.form)
+        request_data = { **request.form }
+        request_data['seeking_talent'] = request_data.get('seeking_talent') == 'y'
+        venue = Venue(**request_data)
         db.session.add(venue)
         db.session.commit()
-        flash(f'Venue `{request.form.get("name")}` was successfully listed.')
+        flash(f'Venue `{request_data.get("name")}` was successfully listed.')
     except Exception as ex:
         db.session.rollback()
         print(ex)
-        flash(f'Venue `{request.form.get("name")}` couldn\'t be listed.')
+        flash(f'Venue `{request_data.get("name")}` couldn\'t be listed.')
     finally:
         db.session.close()
     return render_template('pages/home.html')
@@ -115,12 +115,19 @@ def create_venue_submission():
 
 @app.route('/venues/<venue_id>', methods=['DELETE'])
 def delete_venue(venue_id):
-    # TODO: Complete this endpoint for taking a venue_id, and using
-    # SQLAlchemy ORM to delete a record. Handle cases where the session commit could fail.
+    """
+    Controller to delete venue based on venue_id.
 
-    # BONUS CHALLENGE: Implement a button to delete a Venue on a Venue Page, have it so that
-    # clicking that button delete it from the db then redirect the user to the homepage
-    return None
+    :param venue_id:
+    """
+    try:
+        Venue.query.filter_by(id=venue_id).delete()
+        db.session.commit()
+    except:
+        db.session.rollback()
+    finally:
+        db.session.close()
+    return render_template('pages/home.html')
 
 
 @app.route('/artists')
@@ -158,57 +165,78 @@ def show_artist(artist_id):
 
 @app.route('/artists/<int:artist_id>/edit', methods=['GET'])
 def edit_artist(artist_id):
-    form = ArtistForm()
-    artist = {
-        "id": 4,
-        "name": "Guns N Petals",
-        "genres": ["Rock n Roll"],
-        "city": "San Francisco",
-        "state": "CA",
-        "phone": "326-123-5000",
-        "website": "https://www.gunsnpetalsband.com",
-        "facebook_link": "https://www.facebook.com/GunsNPetals",
-        "seeking_venue": True,
-        "seeking_description": "Looking for shows to perform at in the San Francisco Bay Area!",
-        "image_link": "https://images.unsplash.com/photo-1549213783-8284d0336c4f?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=300&q=80"
-    }
-    # TODO: populate form with fields from artist with ID <artist_id>
-    return render_template('forms/edit_artist.html', form=form, artist=artist)
+    """
+    Controller to render edit artist form.
+
+    :param artist_id:
+    """
+    artist = Artist.query.get(artist_id)
+    serialized_artist = serialize_artist(artist, summarized=False)
+    form = ArtistForm(obj=artist)
+    return render_template('forms/edit_artist.html', form=form, artist=serialized_artist)
 
 
 @app.route('/artists/<int:artist_id>/edit', methods=['POST'])
 def edit_artist_submission(artist_id):
-  # TODO: take values from the form submitted, and update existing
-  # artist record with ID <artist_id> using the new attributes
+    """
+    Controller to edit artist.
 
-  return redirect(url_for('show_artist', artist_id=artist_id))
+    :param artist_id:
+    """
+    artist = Artist.query.get(artist_id)
+    for field in [
+        "name", "city", "state", "phone", "website", "facebook_link",
+        "seeking_description", "image_link", "genres"
+    ]:
+        setattr(artist, field, request.form.get(field))
+    artist.seeking_venue = request.form.get('seeking_venue') == 'y'
+
+    try:
+        db.session.commit()
+        flash(f'Artist {artist.name} was successfully updated.')
+    except Exception as ex:
+        print(ex)
+        db.session.rollback()
+        flash(f'Artist `{artist.name}` couldn\'t be updated.')
+    finally:
+        db.session.close()
+
+    return redirect(url_for('show_artist', artist_id=artist_id))
 
 
 @app.route('/venues/<int:venue_id>/edit', methods=['GET'])
 def edit_venue(venue_id):
-    form = VenueForm()
-    venue = {
-        "id": 1,
-        "name": "The Musical Hop",
-        "genres": ["Jazz", "Reggae", "Swing", "Classical", "Folk"],
-        "address": "1015 Folsom Street",
-        "city": "San Francisco",
-        "state": "CA",
-        "phone": "123-123-1234",
-        "website": "https://www.themusicalhop.com",
-        "facebook_link": "https://www.facebook.com/TheMusicalHop",
-        "seeking_talent": True,
-        "seeking_description": "We are on the lookout for a local artist to play every two weeks. Please call us.",
-        "image_link": "https://images.unsplash.com/photo-1543900694-133f37abaaa5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=400&q=60"
-    }
-    # TODO: populate form with values from venue with ID <venue_id>
-    return render_template('forms/edit_venue.html', form=form, venue=venue)
+    """
+    Controller to render edit venue form.
+
+    :param venue_id:
+    """
+    venue = Venue.query.get(venue_id)
+    serialized_venue = serialize_venue(venue, summarized=False)
+    form = VenueForm(obj=venue)
+    return render_template('forms/edit_venue.html', form=form, venue=serialized_venue)
 
 
 @app.route('/venues/<int:venue_id>/edit', methods=['POST'])
 def edit_venue_submission(venue_id):
-    # TODO: take values from the form submitted, and update existing
-    # venue record with ID <venue_id> using the new attributes
+    venue = Venue.query.get(venue_id)
+    for field in [
+        "name", "city", "state", "phone", "website", "facebook_link",
+        "seeking_description", "image_link", "genres"
+    ]:
+        setattr(venue, field, request.form.get(field))
+    venue.seeking_talent = request.form.get('seeking_talent', False)
+
+    try:
+        db.session.commit()
+        flash(f'Venue {venue.name} was successfully updated.')
+    except Exception as ex:
+        print(ex)
+        db.session.rollback()
+        flash(f'Venue `{venue.name}` couldn\'t be updated.')
+    finally:
+        db.session.close()
+
     return redirect(url_for('show_venue', venue_id=venue_id))
 
 
@@ -227,14 +255,16 @@ def create_artist_submission():
     Controller to handle artist creation.
     """
     try:
-        artist = Artist(**request.form)
+        request_data = { **request.form }
+        request_data['seeking_venue'] = request_data.get('seeking_venue') == 'y'
+        artist = Artist()
         db.session.add(artist)
         db.session.commit()
-        flash(f'Artist `{request.form.get("name")}` was successfully listed.')
+        flash(f'Artist `{request_data.get("name")}` was successfully listed.')
     except Exception as ex:
         db.session.rollback()
         print(ex)
-        flash(f'Artist `{request.form.get("name")}` couldn\'t be listed.')
+        flash(f'Artist `{request_data.get("name")}` couldn\'t be listed.')
     finally:
         db.session.close()
     return render_template('pages/home.html')
