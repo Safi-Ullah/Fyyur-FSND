@@ -1,7 +1,3 @@
-#----------------------------------------------------------------------------#
-# Imports
-#----------------------------------------------------------------------------#
-
 import json
 import dateutil.parser
 import babel
@@ -10,8 +6,9 @@ import logging
 from logging import Formatter, FileHandler
 from flask_wtf import Form
 from forms import *
-from models import app, db, Venue, Artist, Show
+from models import Venue, Artist, Show
 from serializers import serialize_show, serialize_artist, serialize_venue
+from config import app, db
 
 
 def format_datetime(value, format='medium'):

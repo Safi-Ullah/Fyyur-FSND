@@ -23,7 +23,7 @@ def serialize_detailed_artist_instance(artist):
         ]
     }
 
-    serialized_data['genres'] = artist.genres.split(',')
+    serialized_data['genres'] = artist.genres.split(',') if artist.genres else []
     serialized_data['past_shows_count'] = len(serialized_data['past_shows'])
     serialized_data['upcoming_shows_count'] = len(serialized_data['upcoming_shows'])
 
@@ -44,7 +44,7 @@ def serialize_detailed_venue_instance(venue):
         ]
     }
 
-    serialized_data['genres'] = venue.genres.split(',')
+    serialized_data['genres'] = venue.genres.split(',') if venue.genres else []
     serialized_data['past_shows_count'] = len(serialized_data['past_shows'])
     serialized_data['upcoming_shows_count'] = len(serialized_data['upcoming_shows'])
 

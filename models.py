@@ -2,19 +2,9 @@
 
 from datetime import datetime
 
-from flask import Flask
-from flask_moment import Moment
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
+from config import db
 
 DATETIME_FORMAT = '%b %d %Y %H:%M:%S'
-
-app = Flask(__name__)
-moment = Moment(app)
-app.config.from_object('config')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
 
 
 class Venue(db.Model):
